@@ -133,7 +133,7 @@ const parametrosBoleto = [
     Tituloaceite: "N",
     TituloMensagem03: "Titulo sujeito a protesto apos 30 dias",
     TituloMensagem01: "Conceder desconto de R$2,00 até dia 27/12/2018",
-    TituloNossoNumero: "33267834567",
+    TituloNossoNumero: "33267834444",
     TituloNumeroDocumento: "01041202022",
     TituloValor: "355,00",
     TituloLocalPagamento: "Pagável em qualquer banco até o vencimento."
@@ -180,10 +180,19 @@ app.get('/monitorar/:banco', async (req: Request, res: Response) => {
   const { banco } = req.params;
   const inicio = Date.now();
 
+  // Cabeçalhos necessários para a requisição à API externa
+  const headers = {
+    'cnpj-sh': '12067625000150',
+    'token-sh': 'a60c428fbfcafa73bc8eda5e9b7fee4e',
+    'cnpj-cedente': '87734092000111'
+  };
+
   try {
-    const response = await axios.get(`https://homologacao.plugboleto.com.br/api/v1/boletos/lote`);
+    // URL da API externa - certifique-se de que está correta
+    const response = await axios.get(`https://homologacao.plugboleto.com.br/api/v1/boletos/lote`, { headers });
     const tempo_resposta = Date.now() - inicio;
 
+    // Armazenar a resposta no banco de dados
     const novoRegistro = await Boleto.create({
       banco,
       status_code: response.status,
@@ -194,8 +203,16 @@ app.get('/monitorar/:banco', async (req: Request, res: Response) => {
 
     res.status(200).json(novoRegistro);
   } catch (error: any) {
+    console.error('Erro na requisição:', error.message);
+
+    // Verifica se existe uma resposta da API com detalhes do erro
+    if (error.response) {
+      console.error('Detalhes do erro:', error.response.data);
+    }
+
     const tempo_resposta = Date.now() - inicio;
 
+    // Armazenar o erro no banco de dados
     const erroRegistro = await Boleto.create({
       banco,
       status_code: error.response ? error.response.status : 500,
@@ -207,6 +224,7 @@ app.get('/monitorar/:banco', async (req: Request, res: Response) => {
     res.status(500).json(erroRegistro);
   }
 });
+
 
 // Rota para listar requisições por período e segmentadas por banco
 app.get('/relatorio/requisicoes', async (req: Request, res: Response) => {
@@ -241,3 +259,5 @@ app.get('/relatorio/requisicoes', async (req: Request, res: Response) => {
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
 });
+
+

@@ -15,7 +15,7 @@ Extraia o conteúdo do arquivo ZIP do projeto para uma pasta local.
 Abra a pasta do projeto no Visual Studio Code.
 
 3. Configurar o Banco de Dados
-Crie um banco de dados no PostgreSQL:
+Crie um banco de dados PostgreSQL utilizando um software de manipulação de banco de dados:
 
 CREATE DATABASE monitor_bancario;
 
@@ -27,6 +27,13 @@ no terminal bash:
 npm run dev
 
 O servidor estará rodando em http://localhost:3000.
+
+
+Você pode observar os dados sendo armazenados diretamente no banco de dados.
+Para verificar todos os registros de boletos, execute a seguinte consulta no banco de dados:
+
+SELECT * FROM boletos b;
+
 
 Testar a API
 Monitorar o Status de um Banco
