@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { sequelize } from './database';
 import { Boleto } from './models/boleto';
 import axios from 'axios';
+import { Op } from 'sequelize'; // Import Sequelize Op for date filtering
 
 const app = express();
 const port = 3000;
@@ -21,25 +22,21 @@ const emitirBoleto = async (banco: string, parametrosBoleto: any) => {
   const inicio = Date.now();
 
   try {
-    // Headers com CNPJ, token e CNPJ do Cedente
     const headers = {
       'cnpj-sh': '12067625000150',
       'token-sh': 'a60c428fbfcafa73bc8eda5e9b7fee4e',
       'cnpj-cedente': '87734092000111'
     };
 
-    console.log('Headers enviados:', JSON.stringify(headers, null, 2));/// console do header
+    console.log('Headers enviados:', JSON.stringify(headers, null, 2));
 
-    // URL da API bancária
     const apiURL = `https://homologacao.plugboleto.com.br/api/v1/boletos/lote`;
 
-    // Disparar a requisição para a API de emissão de boletos com parâmetros e headers
     console.log('Payload enviado:', JSON.stringify(parametrosBoleto, null, 2));
 
     const response = await axios.post(apiURL, parametrosBoleto, { headers });
     const tempo_resposta = Date.now() - inicio;
 
-    // Armazenar a resposta no banco de dados
     const novoRegistro = await Boleto.create({
       banco,
       status_code: response.status,
@@ -52,7 +49,6 @@ const emitirBoleto = async (banco: string, parametrosBoleto: any) => {
   } catch (error: any) {
     const tempo_resposta = Date.now() - inicio;
 
-    // Armazenar o erro no banco de dados
     const erroRegistro = await Boleto.create({
       banco,
       status_code: error.response ? error.response.status : 500,
@@ -69,25 +65,21 @@ const emitirBoleto2 = async (banco: string, parametrosBoleto: any) => {
   const inicio = Date.now();
 
   try {
-    // Headers com CNPJ, token e CNPJ do Cedente
     const headers = {
       'cnpj-sh': '12067625000150',
       'token-sh': 'a60c428fbfcafa73bc8eda5e9b7fee4e',
       'cnpj-cedente': '87734092000111'
     };
 
-    console.log('Headers enviados:', JSON.stringify(headers, null, 2));/// console do header
+    console.log('Headers enviados:', JSON.stringify(headers, null, 2));
 
-    // URL da API bancária
     const apiURL = `https://homologacao.plugboleto.com.br/api/v1/boletos/lote`;
 
-    // Disparar a requisição para a API de emissão de boletos com parâmetros e headers
     console.log('Payload enviado:', JSON.stringify(parametrosBoleto, null, 2));
 
     const response = await axios.post(apiURL, parametrosBoleto, { headers });
     const tempo_resposta = Date.now() - inicio;
 
-    // Armazenar a resposta no banco de dados
     const novoRegistro = await Boleto.create({
       banco,
       status_code: response.status,
@@ -100,7 +92,6 @@ const emitirBoleto2 = async (banco: string, parametrosBoleto: any) => {
   } catch (error: any) {
     const tempo_resposta = Date.now() - inicio;
 
-    // Armazenar o erro no banco de dados
     const erroRegistro = await Boleto.create({
       banco,
       status_code: error.response ? error.response.status : 500,
@@ -113,7 +104,6 @@ const emitirBoleto2 = async (banco: string, parametrosBoleto: any) => {
   }
 };
 
-// Definir os parâmetros do boleto a serem enviados para a API bancária
 const parametrosBoleto = [
   {
     CedenteContaNumero: "1231",
@@ -156,7 +146,6 @@ const parametrosBoleto2 = [
     CedenteContaNumeroDV: "1",
     CedenteConvenioNumero: "123456",
     CedenteContaCodigoBanco: "077",
-
     SacadoCPFCNPJ: "28436161661",
     SacadoEmail: "email@sacado.com",
     SacadoEnderecoNumero: "987",
@@ -170,7 +159,6 @@ const parametrosBoleto2 = [
     SacadoNome: "Teste de Souza",
     SacadoTelefone: "4499999999",
     SacadoCelular: "44999999999",
-
     TituloDataEmissao: "21/10/2024",
     TituloDataVencimento: "25/10/2024",
     TituloMensagem01: "Juros de 0,01 ao dia",
@@ -182,11 +170,10 @@ const parametrosBoleto2 = [
   }
 ];
 
-// Disparar a emissão de boletos para o banco a cada 5 minutos (300.000 ms)
 setInterval(() => {
   emitirBoleto('104', parametrosBoleto);
-  emitirBoleto2('077', parametrosBoleto2); // Substitua '104' pelo código do banco conforme necessário
-}, 30000); // 300000 ms = 5 minutos
+  emitirBoleto2('077', parametrosBoleto2);
+}, 30000); // A cada 5 minutos
 
 // Rota manual para monitorar o status de um serviço de boleto (já existente)
 app.get('/monitorar/:banco', async (req: Request, res: Response) => {
@@ -194,7 +181,7 @@ app.get('/monitorar/:banco', async (req: Request, res: Response) => {
   const inicio = Date.now();
 
   try {
-    const response = await axios.get(`https://api-ficticia.com/${banco}/boleto`);
+    const response = await axios.get(`https://homologacao.plugboleto.com.br/api/v1/boletos/lote`);
     const tempo_resposta = Date.now() - inicio;
 
     const novoRegistro = await Boleto.create({
@@ -221,6 +208,36 @@ app.get('/monitorar/:banco', async (req: Request, res: Response) => {
   }
 });
 
+// Rota para listar requisições por período e segmentadas por banco
+app.get('/relatorio/requisicoes', async (req: Request, res: Response) => {
+  const { banco, dataInicio, dataFim } = req.query;
+
+  try {
+    const whereClause: any = {};
+
+    // Filtro opcional por banco
+    if (banco) {
+      whereClause.banco = banco;
+    }
+
+    // Filtro por intervalo de datas
+    if (dataInicio && dataFim) {
+      whereClause.createdAt = {
+        [Op.between]: [new Date(dataInicio as string), new Date(dataFim as string)]
+      };
+    }
+
+    const boletos = await Boleto.findAll({
+      where: whereClause,
+      order: [['createdAt', 'ASC']] // Ordenar por data
+    });
+
+    res.status(200).json(boletos);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao gerar relatório de requisições' });
+  }
+});
+
 app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
+  console.log(`Servidor rodando em http://localhost:${port}`);
 });
